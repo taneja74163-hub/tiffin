@@ -1,0 +1,33 @@
+ERROR 2025-09-07 18:46:53,739 log 15640 7224 Invalid HTTP_HOST header: '192.168.1.12:8000'. You may need to add '192.168.1.12' to ALLOWED_HOSTS.
+Traceback (most recent call last):
+  File "C:\Users\user\appDev\FirstApp\backend\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\appDev\FirstApp\backend\venv\Lib\site-packages\django\utils\deprecation.py", line 119, in __call__
+    response = self.process_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\appDev\FirstApp\backend\venv\Lib\site-packages\django\middleware\security.py", line 28, in process_request
+    host = self.redirect_host or request.get_host()
+                                 ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\appDev\FirstApp\backend\venv\Lib\site-packages\django\http\request.py", line 202, in get_host
+    raise DisallowedHost(msg)
+django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: '192.168.1.12:8000'. You may need to add '192.168.1.12' to ALLOWED_HOSTS.
+ERROR 2025-09-07 18:47:40,529 log 15640 12260 Invalid HTTP_HOST header: '192.168.1.12:8000'. You may need to add '192.168.1.12' to ALLOWED_HOSTS.
+Traceback (most recent call last):
+  File "C:\Users\user\appDev\FirstApp\backend\venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\appDev\FirstApp\backend\venv\Lib\site-packages\django\utils\deprecation.py", line 119, in __call__
+    response = self.process_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\appDev\FirstApp\backend\venv\Lib\site-packages\django\middleware\security.py", line 28, in process_request
+    host = self.redirect_host or request.get_host()
+                                 ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\user\appDev\FirstApp\backend\venv\Lib\site-packages\django\http\request.py", line 202, in get_host
+    raise DisallowedHost(msg)
+django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: '192.168.1.12:8000'. You may need to add '192.168.1.12' to ALLOWED_HOSTS.
+ERROR 2025-09-07 18:47:51,156 basehttp 4768 15752 You're accessing the development server over HTTPS, but it only supports HTTP.
+ERROR 2025-09-07 18:49:26,450 basehttp 16192 9980 You're accessing the development server over HTTPS, but it only supports HTTP.
+ERROR 2025-09-07 18:49:28,515 basehttp 16192 3988 You're accessing the development server over HTTPS, but it only supports HTTP.
+ERROR 2025-09-07 18:49:31,679 basehttp 16192 8996 You're accessing the development server over HTTPS, but it only supports HTTP.
+ERROR 2025-09-07 18:49:47,631 basehttp 16192 16156 You're accessing the development server over HTTPS, but it only supports HTTP.
