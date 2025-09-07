@@ -16,6 +16,13 @@ import calendar
 # Customer APIs
 # ----------------------------
 
+@require_GET
+def home(request):
+    return JsonResponse({
+        "message": "Welcome to the Tiffin Service API!",
+        "status": "OK"
+    })
+
 
 # Signup API
 @csrf_exempt
