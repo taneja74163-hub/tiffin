@@ -31,3 +31,6 @@ ERROR 2025-09-07 18:49:26,450 basehttp 16192 9980 You're accessing the developme
 ERROR 2025-09-07 18:49:28,515 basehttp 16192 3988 You're accessing the development server over HTTPS, but it only supports HTTP.
 ERROR 2025-09-07 18:49:31,679 basehttp 16192 8996 You're accessing the development server over HTTPS, but it only supports HTTP.
 ERROR 2025-09-07 18:49:47,631 basehttp 16192 16156 You're accessing the development server over HTTPS, but it only supports HTTP.
+ERROR 2025-09-07 19:32:02,368 basehttp 12456 6648 You're accessing the development server over HTTPS, but it only supports HTTP.
+ERROR 2025-09-07 19:32:05,755 basehttp 12456 15528 You're accessing the development server over HTTPS, but it only supports HTTP.
+ERROR 2025-09-07 19:32:35,129 basehttp 12456 11908 You're accessing the development server over HTTPS, but it only supports HTTP.

@@ -10,6 +10,7 @@ from .models import Customer, TiffinStatus
 from django.contrib.auth.models import User
 from datetime import datetime, timedelta
 import calendar
+from django.views.decorators.http import require_GET
 
 
 # ----------------------------
