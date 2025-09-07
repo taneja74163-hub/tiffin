@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import signup, hello, add_customer, mark_tiffin, customer_detail, customer_stats, edit_customer, delete_customer, customer_meal_history
+from .views import signup, hello, add_customer, mark_tiffin, customer_detail, customer_stats, edit_customer, delete_customer, customer_meal_history, home
 
 urlpatterns = [
     path("", home, name="home"),  # Home endpoint
