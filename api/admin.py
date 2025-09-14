@@ -1,5 +1,4 @@
 from django.contrib import admin
-from .models import Customer, TiffinStatus
+from .models import Customer
 
 admin.site.register(Customer)
-admin.site.register(TiffinStatus)
