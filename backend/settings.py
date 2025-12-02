@@ -211,7 +211,7 @@ CORS_ALLOW_METHODS = [
 # -------------------------
 # CSRF settings
 CSRF_COOKIE_HTTPONLY = False
-CSRF_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = False
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:8081",
     "http://localhost:3000",
@@ -221,7 +221,7 @@ CSRF_TRUSTED_ORIGINS = [
 SECURE_REFERRER_POLICY = "no-referrer-when-downgrade"
 
 # Session settings
-SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_HTTPONLY = False
 SESSION_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SAMESITE = 'Lax'
 
