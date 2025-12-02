@@ -22,5 +22,6 @@ urlpatterns = [
     path('customer/<int:id>/stats/', views.customer_stats, name='customer_stats'),
     path('customer/<int:customer_id>/meal-history/', views.customer_meal_history, name='customer_meal_history'),
     path('customer/<int:customer_id>/date-status/', views.get_date_status, name='get_date_status'),
-    path('customer/<int:customer_id>/pdf/', views.generate_customer_pdf, name='generate_customer_pdf'),
+    # path('customer/<int:customer_id>/pdf/', views.generate_customer_pdf, name='generate_customer_pdf'),
+    path('customer/<int:customer_id>/download-pdf/', views.download_customer_pdf, name='download_customer_pdf'),
 ]

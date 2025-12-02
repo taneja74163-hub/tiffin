@@ -4,6 +4,9 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from datetime import date, datetime, timedelta
+from django.views.decorators.http import require_GET
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse, JsonResponse
 import json
 from django.db import transaction
 from django.db.models import Q, Count
@@ -539,14 +542,14 @@ def customer_meal_history(request, customer_id):
 # PDF Generation
 # ----------------------------
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def generate_customer_pdf(request, customer_id):
-    """Generate PDF report for a customer for selected month"""
+@require_GET
+@login_required
+def download_customer_pdf(request, customer_id):
+    """PDF download view (regular Django view)"""
     try:
         customer = get_object_or_404(Customer, id=customer_id, user=request.user)
         
-        # Get month from query parameters (default to current month)
+        # Get month from query parameters
         month = request.GET.get('month')
         if month:
             year, month_num = map(int, month.split('-'))
@@ -701,19 +704,15 @@ def generate_customer_pdf(request, customer_id):
         
         # Get PDF value from buffer
         buffer.seek(0)
-        pdf_data = buffer.read()
+        pdf_data = buffer.getvalue()
         buffer.close()
         
-        # Create HTTP response with PDF content
         response = HttpResponse(pdf_data, content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="{customer.name}_{year}_{month_num}_report.pdf"'
-        response['Content-Length'] = len(pdf_data)
-        
         return response
         
     except Exception as e:
-        # Return JSON error for API calls
-        return Response({'success': False, 'error': str(e)}, status=400)
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
     """Generate PDF report for a customer for selected month"""
     try:
         customer = get_object_or_404(Customer, id=customer_id, user=request.user)
