@@ -25,10 +25,63 @@ from reportlab.platypus import Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet
 from io import BytesIO
 from django.http import HttpResponse
+from rest_framework_simplejwt.exceptions import InvalidToken, AuthenticationFailed
+from functools import wraps
+from rest_framework_simplejwt.authentication import JWTAuthentication
+import jwt
+
 
 # ----------------------------
 # Helper functions
 # ----------------------------
+
+def jwt_login_required(view_func):
+    """
+    Custom decorator for JWT authentication in regular Django views
+    """
+    @wraps(view_func)
+    def _wrapped_view(request, *args, **kwargs):
+        auth_header = request.headers.get('Authorization')
+        
+        if not auth_header:
+            return JsonResponse({
+                'success': False,
+                'error': 'Authorization header required'
+            }, status=401)
+        
+        try:
+            # Extract token from "Bearer <token>"
+            if auth_header.startswith('Bearer '):
+                token = auth_header.split(' ')[1]
+            else:
+                token = auth_header
+            
+            # Decode and verify token
+            jwt_auth = JWTAuthentication()
+            validated_token = jwt_auth.get_validated_token(token)
+            user = jwt_auth.get_user(validated_token)
+            
+            if user and user.is_authenticated:
+                request.user = user
+                return view_func(request, *args, **kwargs)
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid token'
+                }, status=401)
+                
+        except (InvalidToken, AuthenticationFailed, jwt.exceptions.DecodeError) as e:
+            return JsonResponse({
+                'success': False,
+                'error': f'Authentication failed: {str(e)}'
+            }, status=401)
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': f'Authentication error: {str(e)}'
+            }, status=401)
+    
+    return _wrapped_view
 
 def calculate_total_possible_meals(customer):
     today = date.today()
@@ -543,7 +596,7 @@ def customer_meal_history(request, customer_id):
 # ----------------------------
 
 @require_GET
-# @login_required
+@jwt_login_required 
 def download_customer_pdf(request, customer_id):
     """PDF download view (regular Django view)"""
     try:
