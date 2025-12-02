@@ -546,6 +546,178 @@ def generate_customer_pdf(request, customer_id):
     try:
         customer = get_object_or_404(Customer, id=customer_id, user=request.user)
         
+        # Get month from query parameters (default to current month)
+        month = request.GET.get('month')
+        if month:
+            year, month_num = map(int, month.split('-'))
+        else:
+            today = date.today()
+            year, month_num = today.year, today.month
+        
+        # Calculate date range for the selected month
+        _, last_day = monthrange(year, month_num)
+        start_date = date(year, month_num, 1)
+        end_date = date(year, month_num, last_day)
+        
+        # If customer joined after month start, adjust start date
+        if customer.joining_date > start_date:
+            start_date = customer.joining_date
+        
+        # Get all meals for the month
+        meals = DailyMeal.objects.filter(
+            customer=customer,
+            date__gte=start_date,
+            date__lte=end_date
+        ).order_by('date', 'meal_type')
+        
+        # Organize data by date
+        meal_dict = {}
+        for meal in meals:
+            date_key = meal.date
+            if date_key not in meal_dict:
+                meal_dict[date_key] = {'lunch': True, 'dinner': True}
+            
+            if meal.meal_type == 'L':
+                meal_dict[date_key]['lunch'] = meal.is_taken
+            elif meal.meal_type == 'D':
+                meal_dict[date_key]['dinner'] = meal.is_taken
+        
+        # Calculate statistics
+        active_days = (end_date - start_date).days + 1
+        
+        # Calculate taken and missed meals
+        lunches_taken = sum(1 for day_data in meal_dict.values() if day_data['lunch'])
+        dinners_taken = sum(1 for day_data in meal_dict.values() if day_data['dinner'])
+        
+        lunches_missed = active_days - lunches_taken
+        dinners_missed = active_days - dinners_taken
+        
+        # Calculate total fee for the month
+        daily_rate = customer.fee / 30  # Assuming monthly fee, adjust if different
+        total_meals_taken = lunches_taken + dinners_taken
+        total_possible_meals = active_days * 2
+        amount_payable = (total_meals_taken / total_possible_meals) * customer.fee if total_possible_meals > 0 else 0
+        
+        # Create PDF
+        buffer = BytesIO()
+        pdf = canvas.Canvas(buffer, pagesize=letter)
+        
+        # Set up styles
+        styles = getSampleStyleSheet()
+        
+        # PDF content
+        y_position = 750
+        
+        # Title
+        pdf.setFont("Helvetica-Bold", 16)
+        pdf.drawString(200, y_position, "Tiffin Service Monthly Report")
+        y_position -= 30
+        
+        # Customer Information
+        pdf.setFont("Helvetica-Bold", 12)
+        pdf.drawString(50, y_position, f"Customer: {customer.name}")
+        y_position -= 20
+        pdf.setFont("Helvetica", 12)
+        pdf.drawString(50, y_position, f"Month: {calendar.month_name[month_num]} {year}")
+        y_position -= 20
+        pdf.drawString(50, y_position, f"Joining Date: {customer.joining_date.strftime('%d %B %Y')}")
+        y_position -= 20
+        pdf.drawString(50, y_position, f"Monthly Fee: ₹{customer.fee:.2f}")
+        y_position -= 40
+        
+        # Summary Statistics
+        pdf.setFont("Helvetica-Bold", 14)
+        pdf.drawString(50, y_position, "Monthly Summary")
+        y_position -= 30
+        
+        pdf.setFont("Helvetica", 12)
+        pdf.drawString(50, y_position, f"Active Days in Month: {active_days}")
+        y_position -= 20
+        pdf.drawString(50, y_position, f"Lunches Taken: {lunches_taken} / {active_days}")
+        y_position -= 20
+        pdf.drawString(50, y_position, f"Dinners Taken: {dinners_taken} / {active_days}")
+        y_position -= 20
+        pdf.drawString(50, y_position, f"Total Meals Taken: {total_meals_taken} / {total_possible_meals}")
+        y_position -= 20
+        pdf.drawString(50, y_position, f"Meal Completion Rate: {(total_meals_taken/total_possible_meals*100):.1f}%" if total_possible_meals > 0 else "N/A")
+        y_position -= 20
+        pdf.drawString(50, y_position, f"Amount Payable: ₹{amount_payable:.2f}")
+        y_position -= 40
+        
+        # Daily Meal Table
+        pdf.setFont("Helvetica-Bold", 14)
+        pdf.drawString(50, y_position, "Daily Meal Status")
+        y_position -= 30
+        
+        # Create table data
+        table_data = [['Date', 'Day', 'Lunch', 'Dinner', 'Status']]
+        
+        # Add rows for each day
+        current_date = start_date
+        while current_date <= end_date:
+            day_name = calendar.day_name[current_date.weekday()]
+            meal_status = meal_dict.get(current_date, {'lunch': True, 'dinner': True})
+            
+            lunch_status = "✓" if meal_status['lunch'] else "✗"
+            dinner_status = "✓" if meal_status['dinner'] else "✗"
+            
+            day_status = "Present" if meal_status['lunch'] or meal_status['dinner'] else "Absent"
+            
+            table_data.append([
+                current_date.strftime('%d-%m-%Y'),
+                day_name[:3],
+                lunch_status,
+                dinner_status,
+                day_status
+            ])
+            
+            current_date += timedelta(days=1)
+        
+        # Create and style table
+        table = Table(table_data, colWidths=[80, 50, 50, 50, 60])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        
+        # Draw table
+        table.wrapOn(pdf, 400, 200)
+        table.drawOn(pdf, 50, y_position - (len(table_data) * 20) - 20)
+        
+        # Footer
+        pdf.setFont("Helvetica-Oblique", 10)
+        pdf.drawString(50, 50, f"Report generated on {date.today().strftime('%d %B %Y')}")
+        pdf.drawString(50, 35, "Signature: ________________________")
+        
+        pdf.showPage()
+        pdf.save()
+        
+        # Get PDF value from buffer
+        buffer.seek(0)
+        pdf_data = buffer.read()
+        buffer.close()
+        
+        # Create HTTP response with PDF content
+        response = HttpResponse(pdf_data, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{customer.name}_{year}_{month_num}_report.pdf"'
+        response['Content-Length'] = len(pdf_data)
+        
+        return response
+        
+    except Exception as e:
+        # Return JSON error for API calls
+        return Response({'success': False, 'error': str(e)}, status=400)
+    """Generate PDF report for a customer for selected month"""
+    try:
+        customer = get_object_or_404(Customer, id=customer_id, user=request.user)
+        
         month = request.GET.get('month')
         if month:
             year, month_num = map(int, month.split('-'))
