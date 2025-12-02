@@ -543,7 +543,7 @@ def customer_meal_history(request, customer_id):
 # ----------------------------
 
 @require_GET
-@login_required
+# @login_required
 def download_customer_pdf(request, customer_id):
     """PDF download view (regular Django view)"""
     try:
