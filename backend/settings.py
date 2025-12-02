@@ -210,13 +210,15 @@ CORS_ALLOW_METHODS = [
 # Security Settings
 # -------------------------
 # CSRF settings
-CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SECURE = not DEBUG
-CSRF_TRUSTED_ORIGINS = config(
-    "CSRF_TRUSTED_ORIGINS",
-    default="http://localhost:8081,http://localhost:3000,https://jatin2010.pythonanywhere.com,www.jatin2010.pythonanywhere.com",
-    cast=Csv()
-)
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:8081",
+    "http://localhost:3000",
+    "https://jatin2010.pythonanywhere.com",
+    "https://www.jatin2010.pythonanywhere.com",
+]
+SECURE_REFERRER_POLICY = "no-referrer-when-downgrade"
 
 # Session settings
 SESSION_COOKIE_HTTPONLY = True
