@@ -5,7 +5,6 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from datetime import date, datetime, timedelta
 from django.views.decorators.http import require_GET
-from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, JsonResponse
 import json
 from django.db import transaction
@@ -13,6 +12,8 @@ from django.db.models import Q, Count
 from django.contrib.auth import authenticate
 from calendar import monthrange
 import calendar
+import io  # ADD THIS IMPORT
+from decimal import Decimal  # ADD THIS IMPORT
 
 from .models import Customer, DailyMeal
 from django.contrib.auth.models import User
@@ -23,7 +24,6 @@ from reportlab.pdfgen import canvas
 from reportlab.lib import colors
 from reportlab.platypus import Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet
-from io import BytesIO
 from django.http import HttpResponse
 from rest_framework_simplejwt.exceptions import InvalidToken, AuthenticationFailed
 from functools import wraps
@@ -211,6 +211,7 @@ def home(request):
             "update_status": "POST /api/update_specific_date/",
             "date_status": "GET /api/customer/<id>/date-status/?date=YYYY-MM-DD",
             "generate_pdf": "GET /api/customer/<id>/pdf/?month=YYYY-MM",
+            "download_pdf": "GET /api/customer/<id>/download-pdf/?month=YYYY-MM",
             "jwt_token": "POST /api/token/",
             "jwt_refresh": "POST /api/token/refresh/",
             "jwt_verify": "POST /api/token/verify/"
@@ -595,14 +596,14 @@ def customer_meal_history(request, customer_id):
 # PDF Generation
 # ----------------------------
 
-@require_GET
-@jwt_login_required 
-def download_customer_pdf(request, customer_id):
-    """PDF download view (regular Django view)"""
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def generate_customer_pdf(request, customer_id):
+    """Generate PDF report for a customer for selected month - DRF API version"""
     try:
         customer = get_object_or_404(Customer, id=customer_id, user=request.user)
         
-        # Get month from query parameters
+        # Get month from query parameters (default to current month)
         month = request.GET.get('month')
         if month:
             year, month_num = map(int, month.split('-'))
@@ -648,18 +649,21 @@ def download_customer_pdf(request, customer_id):
         lunches_missed = active_days - lunches_taken
         dinners_missed = active_days - dinners_taken
         
-        # Calculate total fee for the month
-        daily_rate = customer.fee / 30  # Assuming monthly fee, adjust if different
+        # Calculate total fee for the month - FIXED
         total_meals_taken = lunches_taken + dinners_taken
         total_possible_meals = active_days * 2
-        amount_payable = (total_meals_taken / total_possible_meals) * customer.fee if total_possible_meals > 0 else 0
         
-        # Create PDF
-        buffer = BytesIO()
+        # Fix the Decimal calculation error
+        if total_possible_meals > 0:
+            # Convert to float for calculation
+            proportion_taken = total_meals_taken / total_possible_meals
+            amount_payable = float(proportion_taken * float(customer.fee))
+        else:
+            amount_payable = 0.0
+        
+        # Create PDF in memory
+        buffer = io.BytesIO()
         pdf = canvas.Canvas(buffer, pagesize=letter)
-        
-        # Set up styles
-        styles = getSampleStyleSheet()
         
         # PDF content
         y_position = 750
@@ -678,7 +682,7 @@ def download_customer_pdf(request, customer_id):
         y_position -= 20
         pdf.drawString(50, y_position, f"Joining Date: {customer.joining_date.strftime('%d %B %Y')}")
         y_position -= 20
-        pdf.drawString(50, y_position, f"Monthly Fee: ₹{customer.fee:.2f}")
+        pdf.drawString(50, y_position, f"Monthly Fee: ₹{float(customer.fee):.2f}")
         y_position -= 40
         
         # Summary Statistics
@@ -695,8 +699,12 @@ def download_customer_pdf(request, customer_id):
         y_position -= 20
         pdf.drawString(50, y_position, f"Total Meals Taken: {total_meals_taken} / {total_possible_meals}")
         y_position -= 20
-        pdf.drawString(50, y_position, f"Meal Completion Rate: {(total_meals_taken/total_possible_meals*100):.1f}%" if total_possible_meals > 0 else "N/A")
+        
+        # Fix completion rate calculation
+        completion_rate = (total_meals_taken / total_possible_meals * 100) if total_possible_meals > 0 else 0
+        pdf.drawString(50, y_position, f"Meal Completion Rate: {completion_rate:.1f}%")
         y_position -= 20
+        
         pdf.drawString(50, y_position, f"Amount Payable: ₹{amount_payable:.2f}")
         y_position -= 40
         
@@ -760,16 +768,23 @@ def download_customer_pdf(request, customer_id):
         pdf_data = buffer.getvalue()
         buffer.close()
         
+        # Create HTTP response
         response = HttpResponse(pdf_data, content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="{customer.name}_{year}_{month_num}_report.pdf"'
         return response
         
     except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=400)
-    """Generate PDF report for a customer for selected month"""
+        # Return JSON error for debugging
+        return Response({'success': False, 'error': str(e)}, status=400)
+
+@require_GET
+@jwt_login_required 
+def download_customer_pdf(request, customer_id):
+    """PDF download view (regular Django view with JWT auth)"""
     try:
         customer = get_object_or_404(Customer, id=customer_id, user=request.user)
         
+        # Get month from query parameters
         month = request.GET.get('month')
         if month:
             year, month_num = map(int, month.split('-'))
@@ -777,19 +792,23 @@ def download_customer_pdf(request, customer_id):
             today = date.today()
             year, month_num = today.year, today.month
         
+        # Calculate date range for the selected month
         _, last_day = monthrange(year, month_num)
         start_date = date(year, month_num, 1)
         end_date = date(year, month_num, last_day)
         
+        # If customer joined after month start, adjust start date
         if customer.joining_date > start_date:
             start_date = customer.joining_date
         
+        # Get all meals for the month
         meals = DailyMeal.objects.filter(
             customer=customer,
             date__gte=start_date,
             date__lte=end_date
         ).order_by('date', 'meal_type')
         
+        # Organize data by date
         meal_dict = {}
         for meal in meals:
             date_key = meal.date
@@ -801,17 +820,33 @@ def download_customer_pdf(request, customer_id):
             elif meal.meal_type == 'D':
                 meal_dict[date_key]['dinner'] = meal.is_taken
         
+        # Calculate statistics
         active_days = (end_date - start_date).days + 1
+        
+        # Calculate taken and missed meals
         lunches_taken = sum(1 for day_data in meal_dict.values() if day_data['lunch'])
         dinners_taken = sum(1 for day_data in meal_dict.values() if day_data['dinner'])
+        
+        lunches_missed = active_days - lunches_taken
+        dinners_missed = active_days - dinners_taken
+        
+        # Calculate total fee for the month - FIXED
         total_meals_taken = lunches_taken + dinners_taken
         total_possible_meals = active_days * 2
-        amount_payable = (total_meals_taken / total_possible_meals) * customer.fee if total_possible_meals > 0 else 0
+        
+        # Fix the Decimal calculation error
+        if total_possible_meals > 0:
+            # Convert to float for calculation
+            proportion_taken = total_meals_taken / total_possible_meals
+            amount_payable = float(proportion_taken * float(customer.fee))
+        else:
+            amount_payable = 0.0
         
         # Create PDF
-        buffer = BytesIO()
+        buffer = io.BytesIO()
         pdf = canvas.Canvas(buffer, pagesize=letter)
         
+        # PDF content
         y_position = 750
         
         # Title
@@ -828,7 +863,7 @@ def download_customer_pdf(request, customer_id):
         y_position -= 20
         pdf.drawString(50, y_position, f"Joining Date: {customer.joining_date.strftime('%d %B %Y')}")
         y_position -= 20
-        pdf.drawString(50, y_position, f"Monthly Fee: ₹{customer.fee:.2f}")
+        pdf.drawString(50, y_position, f"Monthly Fee: ₹{float(customer.fee):.2f}")
         y_position -= 40
         
         # Summary Statistics
@@ -845,8 +880,12 @@ def download_customer_pdf(request, customer_id):
         y_position -= 20
         pdf.drawString(50, y_position, f"Total Meals Taken: {total_meals_taken} / {total_possible_meals}")
         y_position -= 20
-        pdf.drawString(50, y_position, f"Meal Completion Rate: {(total_meals_taken/total_possible_meals*100):.1f}%" if total_possible_meals > 0 else "N/A")
+        
+        # Fix completion rate calculation
+        completion_rate = (total_meals_taken / total_possible_meals * 100) if total_possible_meals > 0 else 0
+        pdf.drawString(50, y_position, f"Meal Completion Rate: {completion_rate:.1f}%")
         y_position -= 20
+        
         pdf.drawString(50, y_position, f"Amount Payable: ₹{amount_payable:.2f}")
         y_position -= 40
         
@@ -855,8 +894,10 @@ def download_customer_pdf(request, customer_id):
         pdf.drawString(50, y_position, "Daily Meal Status")
         y_position -= 30
         
+        # Create table data
         table_data = [['Date', 'Day', 'Lunch', 'Dinner', 'Status']]
         
+        # Add rows for each day
         current_date = start_date
         while current_date <= end_date:
             day_name = calendar.day_name[current_date.weekday()]
@@ -903,11 +944,9 @@ def download_customer_pdf(request, customer_id):
         pdf_data = buffer.getvalue()
         buffer.close()
         
-        response = HttpResponse(content_type='application/pdf')
+        response = HttpResponse(pdf_data, content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="{customer.name}_{year}_{month_num}_report.pdf"'
-        response.write(pdf_data)
-        
         return response
         
     except Exception as e:
-        return Response({'success': False, 'error': str(e)}, status=400)
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
