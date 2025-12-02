@@ -5,7 +5,19 @@ import dj_database_url
 from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+# -------------------------
+# Security
+# -------------------------
+SECRET_KEY = config("DJANGO_SECRET_KEY", default="django-insecure-dev-key-change-in-production")
+DEBUG = config("DEBUG", default=True, cast=bool)
 
+ALLOWED_HOSTS = config(
+    "ALLOWED_HOSTS", 
+    default="localhost,127.0.0.1,jatin2010.pythonanywhere.com,www.jatin2010.pythonanywhere.com",
+    cast=Csv()
+)
+
+# JWT Settings (MOVE THIS HERE, AFTER SECRET_KEY)
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
@@ -14,7 +26,7 @@ SIMPLE_JWT = {
     'UPDATE_LAST_LOGIN': False,
 
     'ALGORITHM': 'HS256',
-    'SIGNING_KEY': SECRET_KEY,
+    'SIGNING_KEY': SECRET_KEY,  # Now SECRET_KEY is defined
     'VERIFYING_KEY': None,
     'AUDIENCE': None,
     'ISSUER': None,
@@ -37,18 +49,6 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_LIFETIME': timedelta(minutes=5),
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
 }
-
-# -------------------------
-# Security
-# -------------------------
-SECRET_KEY = config("DJANGO_SECRET_KEY", default="django-insecure-dev-key-change-in-production")
-DEBUG = config("DEBUG", default=True, cast=bool)
-
-ALLOWED_HOSTS = config(
-    "ALLOWED_HOSTS", 
-    default="localhost,127.0.0.1,jatin2010.pythonanywhere.com,www.jatin2010.pythonanywhere.com",
-    cast=Csv()
-)
 
 # -------------------------
 # Application definition
@@ -202,17 +202,17 @@ REST_FRAMEWORK = {
 # -------------------------
 # CORS Configuration
 # -------------------------
-CORS_ALLOWED_ORIGINS = config(
-    "CORS_ALLOWED_ORIGINS",
-    default="http://localhost:8081,http://localhost:3000,exp://192.168.18:8081,https://jatin2010.pythonanywhere.com,www.jatin2010.pythonanywhere.com,",
-    cast=Csv()
-)
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:8081",
+    "http://localhost:3000",
+    "exp://192.168.18.5:8081",  # Note: Changed from 192.168.18:8081 to 192.168.18.5:8081 (add .5)
+    "https://jatin2010.pythonanywhere.com",
+    "http://jatin2010.pythonanywhere.com",
+    "exp://localhost:8081",  # Add Expo specific scheme
+]
 
 # For development only - allow all origins
-if DEBUG:
-    CORS_ALLOW_ALL_ORIGINS = True
-else:
-    CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_ALL_ORIGINS = DEBUG
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -227,8 +227,8 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
+    'access-control-allow-origin',  # Add this
 ]
-
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',
@@ -237,6 +237,18 @@ CORS_ALLOW_METHODS = [
     'POST',
     'PUT',
 ]
+CORS_EXPOSE_HEADERS = [
+    'content-type',
+    'authorization',
+    'x-csrftoken',
+]
+if DEBUG:
+    CORS_ALLOWED_ORIGINS += [
+        "http://127.0.0.1:8081",
+        "http://127.0.0.1:19000",
+        "http://127.0.0.1:19006",
+        "exp://127.0.0.1:19000",
+    ]
 
 # -------------------------
 # Security Settings
