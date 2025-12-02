@@ -172,7 +172,7 @@ REST_FRAMEWORK = {
 # -------------------------
 CORS_ALLOWED_ORIGINS = config(
     "CORS_ALLOWED_ORIGINS",
-    default="http://localhost:8081,http://localhost:3000,exp://192.168.*",
+    default="http://localhost:8081,http://localhost:3000,exp://192.168.18:8081",
     cast=Csv()
 )
 
